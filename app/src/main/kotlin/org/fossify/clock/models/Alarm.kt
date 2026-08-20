@@ -16,12 +16,17 @@ data class Alarm(
     var soundUri: String,
     var label: String,
     var oneShot: Boolean = false,
+    // timestamp (millis) of the skipped occurrence, while the alarm is skipping just its next
+    // ring; used to show the alarm as temporarily off until that occurrence's time has passed
+    var skippedUntil: Long = 0L,
 ) {
     fun isRecurring() = days > 0
 
     fun isToday() = days == TODAY_BIT
 
     fun isTomorrow() = days == TOMORROW_BIT
+
+    fun isCurrentlySkipped() = skippedUntil > System.currentTimeMillis()
 }
 
 @Keep

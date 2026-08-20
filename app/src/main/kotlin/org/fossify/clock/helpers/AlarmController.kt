@@ -68,7 +68,12 @@ class AlarmController(
 
             // Schedule the *next* occurrence based on the original repeating schedule.
             if (alarm.isRecurring()) {
-                // TODO: This is a bit of a hack. Skipped alarms should be tracked properly.
+                // Remember the skipped occurrence's time so the alarms list can show it as
+                // temporarily off until that time has passed.
+                getTimeOfNextAlarm(alarm)?.let {
+                    db.updateAlarmSkippedUntil(alarmId, it.timeInMillis)
+                }
+
                 val todayBitmask = getTodayBit()
                 if (alarm.days and todayBitmask != 0) {
                     // If there are other days set, schedule based on those remaining days.
@@ -88,6 +93,24 @@ class AlarmController(
                 disableOrDeleteOneTimeAlarm(alarm)
             }
 
+            notifyObservers()
+        }
+    }
+
+    /**
+     * Cancels a pending "skip next occurrence" for an alarm and reschedules it right away, as if
+     * the skip never happened. Used when the user switches the alarm back on while it's showing
+     * as temporarily off due to a skip.
+     *
+     * @param alarmId The ID of the alarm to un-skip.
+     */
+    fun clearSkip(alarmId: Int) {
+        ensureBackgroundThread {
+            val alarm = db.getAlarmWithId(alarmId) ?: return@ensureBackgroundThread
+            db.updateAlarmSkippedUntil(alarmId, 0L)
+            if (alarm.isEnabled) {
+                scheduleNextAlarm(alarm)
+            }
             notifyObservers()
         }
     }

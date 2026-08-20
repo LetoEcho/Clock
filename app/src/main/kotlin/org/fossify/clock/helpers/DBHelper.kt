@@ -11,6 +11,7 @@ import org.fossify.clock.extensions.cancelAlarmClock
 import org.fossify.clock.extensions.createNewAlarm
 import org.fossify.clock.models.Alarm
 import org.fossify.commons.extensions.getIntValue
+import org.fossify.commons.extensions.getLongValue
 import org.fossify.commons.extensions.getStringValue
 import org.fossify.commons.helpers.FRIDAY_BIT
 import org.fossify.commons.helpers.MONDAY_BIT
@@ -34,11 +35,12 @@ class DBHelper private constructor(
     private val COL_SOUND_URI = "sound_uri"
     private val COL_LABEL = "label"
     private val COL_ONE_SHOT = "one_shot"
+    private val COL_SKIPPED_UNTIL = "skipped_until"
 
     private val mDb = writableDatabase
 
     companion object {
-        private const val DB_VERSION = 2
+        private const val DB_VERSION = 3
         const val DB_NAME = "alarms.db"
 
         @SuppressLint("StaticFieldLeak")
@@ -56,7 +58,8 @@ class DBHelper private constructor(
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
             "CREATE TABLE IF NOT EXISTS $ALARMS_TABLE_NAME ($COL_ID INTEGER PRIMARY KEY AUTOINCREMENT, $COL_TIME_IN_MINUTES INTEGER, $COL_DAYS INTEGER, " +
-                "$COL_IS_ENABLED INTEGER, $COL_VIBRATE INTEGER, $COL_SOUND_TITLE TEXT, $COL_SOUND_URI TEXT, $COL_LABEL TEXT, $COL_ONE_SHOT INTEGER)"
+                "$COL_IS_ENABLED INTEGER, $COL_VIBRATE INTEGER, $COL_SOUND_TITLE TEXT, $COL_SOUND_URI TEXT, $COL_LABEL TEXT, $COL_ONE_SHOT INTEGER, " +
+                "$COL_SKIPPED_UNTIL INTEGER NOT NULL DEFAULT 0)"
         )
         insertInitialAlarms(db)
     }
@@ -64,6 +67,9 @@ class DBHelper private constructor(
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion == 1 && newVersion > oldVersion) {
             db.execSQL("ALTER TABLE $ALARMS_TABLE_NAME ADD COLUMN $COL_ONE_SHOT INTEGER NOT NULL DEFAULT 0")
+        }
+        if (oldVersion < 3 && newVersion >= 3) {
+            db.execSQL("ALTER TABLE $ALARMS_TABLE_NAME ADD COLUMN $COL_SKIPPED_UNTIL INTEGER NOT NULL DEFAULT 0")
         }
     }
 
@@ -97,6 +103,14 @@ class DBHelper private constructor(
         return mDb.update(ALARMS_TABLE_NAME, values, selection, selectionArgs) == 1
     }
 
+    fun updateAlarmSkippedUntil(id: Int, skippedUntil: Long): Boolean {
+        val selectionArgs = arrayOf(id.toString())
+        val values = ContentValues()
+        values.put(COL_SKIPPED_UNTIL, skippedUntil)
+        val selection = "$COL_ID = ?"
+        return mDb.update(ALARMS_TABLE_NAME, values, selection, selectionArgs) == 1
+    }
+
     fun deleteAlarms(alarms: ArrayList<Alarm>) {
         alarms.filter { it.isEnabled }.forEach {
             context.cancelAlarmClock(it)
@@ -121,6 +135,7 @@ class DBHelper private constructor(
             put(COL_SOUND_URI, alarm.soundUri)
             put(COL_LABEL, alarm.label)
             put(COL_ONE_SHOT, alarm.oneShot)
+            put(COL_SKIPPED_UNTIL, alarm.skippedUntil)
         }
     }
 
@@ -137,7 +152,8 @@ class DBHelper private constructor(
             COL_SOUND_TITLE,
             COL_SOUND_URI,
             COL_LABEL,
-            COL_ONE_SHOT
+            COL_ONE_SHOT,
+            COL_SKIPPED_UNTIL
         )
         var cursor: Cursor? = null
         try {
@@ -154,6 +170,7 @@ class DBHelper private constructor(
                         val soundUri = cursor.getStringValue(COL_SOUND_URI)
                         val label = cursor.getStringValue(COL_LABEL)
                         val oneShot = cursor.getIntValue(COL_ONE_SHOT) == 1
+                        val skippedUntil = cursor.getLongValue(COL_SKIPPED_UNTIL)
 
                         val alarm = Alarm(
                             id = id,
@@ -164,7 +181,8 @@ class DBHelper private constructor(
                             soundTitle = soundTitle,
                             soundUri = soundUri,
                             label = label,
-                            oneShot = oneShot
+                            oneShot = oneShot,
+                            skippedUntil = skippedUntil
                         )
                         alarms.add(alarm)
                     } catch (e: Exception) {

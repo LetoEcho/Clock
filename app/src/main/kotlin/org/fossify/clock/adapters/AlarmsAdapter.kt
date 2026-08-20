@@ -10,6 +10,8 @@ import androidx.recyclerview.widget.RecyclerView
 import org.fossify.clock.R
 import org.fossify.clock.activities.SimpleActivity
 import org.fossify.clock.databinding.ItemAlarmBinding
+import org.fossify.clock.dialogs.SkipOrDisableAlarmDialog
+import org.fossify.clock.extensions.alarmController
 import org.fossify.clock.extensions.config
 import org.fossify.clock.extensions.dbHelper
 import org.fossify.clock.extensions.getFormattedTime
@@ -21,7 +23,6 @@ import org.fossify.commons.adapters.MyRecyclerViewAdapter
 import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.extensions.applyColorFilter
 import org.fossify.commons.extensions.beVisibleIf
-import org.fossify.commons.extensions.getSelectedDaysString
 import org.fossify.commons.extensions.move
 import org.fossify.commons.helpers.EVERY_DAY_BIT
 import org.fossify.commons.helpers.SORT_BY_CUSTOM
@@ -158,7 +159,7 @@ class AlarmsAdapter(
             alarmLabel.setTextColor(textColor)
             alarmLabel.beVisibleIf(alarm.label.isNotEmpty())
 
-            alarmSwitch.isChecked = alarm.isEnabled
+            alarmSwitch.isChecked = alarm.isEnabled && !alarm.isCurrentlySkipped()
             alarmSwitch.setColors(textColor, properPrimaryColor, backgroundColor)
             alarmSwitch.setOnClickListener {
                 toggleAlarm(binding = this, alarm = alarm)
@@ -167,7 +168,33 @@ class AlarmsAdapter(
     }
 
     private fun toggleAlarm(binding: ItemAlarmBinding, alarm: Alarm) {
+        val newCheckedState = binding.alarmSwitch.isChecked
         when {
+            alarm.isRecurring() && alarm.isCurrentlySkipped() && newCheckedState -> {
+                // the switch was showing "off" because of a pending skip; cancel the skip
+                // instead of going through the normal enable flow
+                activity.alarmController.clearSkip(alarm.id)
+            }
+
+            alarm.isRecurring() && !newCheckedState -> {
+                binding.alarmSwitch.isChecked = true // keep showing on until the user decides
+                SkipOrDisableAlarmDialog(
+                    activity = activity,
+                    alarm = alarm,
+                    onSkipNext = {
+                        binding.alarmSwitch.isChecked = false
+                        activity.alarmController.skipNextOccurrence(alarm.id)
+                    },
+                    onDisableForever = {
+                        binding.alarmSwitch.isChecked = false
+                        toggleAlarmInterface.alarmToggled(alarm.id, false)
+                    },
+                    onCancelled = {
+                        binding.alarmSwitch.isChecked = true
+                    }
+                )
+            }
+
             alarm.isRecurring() -> {
                 if (activity.config.wasAlarmWarningShown) {
                     toggleAlarmInterface.alarmToggled(alarm.id, binding.alarmSwitch.isChecked)
@@ -203,7 +230,7 @@ class AlarmsAdapter(
                 activity.getString(org.fossify.commons.R.string.every_day)
             } else {
                 // TODO: This does not respect config.firstDayOfWeek
-                activity.getSelectedDaysString(alarm.days)
+                getSelectedDaysStringSafe(alarm.days)
             }
         }
 
@@ -212,6 +239,21 @@ class AlarmsAdapter(
             alarm.isToday() -> resources.getString(org.fossify.commons.R.string.today)
             else -> resources.getString(org.fossify.commons.R.string.tomorrow)
         }
+    }
+
+    // local replacement for org.fossify.commons.extensions.getSelectedDaysString(), which crashes
+    // with a ClassCastException (Arrays$ArrayList -> ArrayList) on this commons version
+    private fun getSelectedDaysStringSafe(days: Int): String {
+        val weekDayBits = mutableListOf(1, 2, 4, 8, 16, 32, 64)
+        val dayLabels = activity.resources.getStringArray(org.fossify.commons.R.array.week_days_short).toMutableList()
+        if (activity.config.isSundayFirst) {
+            weekDayBits.add(0, weekDayBits.removeAt(weekDayBits.lastIndex))
+            dayLabels.add(0, dayLabels.removeAt(dayLabels.lastIndex))
+        }
+
+        return weekDayBits.indices
+            .filter { days and weekDayBits[it] != 0 }
+            .joinToString(", ") { dayLabels[it] }
     }
 
     override fun onRowMoved(fromPosition: Int, toPosition: Int) {
