@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import org.fossify.clock.R
 import org.fossify.clock.databinding.ActivitySettingsBinding
 import org.fossify.clock.dialogs.ExportDataDialog
+import org.fossify.clock.dialogs.ManageTabsDialog
 import org.fossify.clock.extensions.config
 import org.fossify.clock.extensions.dbHelper
 import org.fossify.clock.extensions.timerDb
@@ -24,6 +25,8 @@ import org.fossify.clock.helpers.TAB_CLOCK
 import org.fossify.clock.helpers.TAB_STOPWATCH
 import org.fossify.clock.helpers.TAB_TIMER
 import org.fossify.clock.helpers.TimerHelper
+import org.fossify.clock.helpers.getFullTabsOrder
+import org.fossify.clock.helpers.getVisibleTabsOrdered
 import org.fossify.clock.models.AlarmTimerBackup
 import org.fossify.commons.dialogs.RadioGroupDialog
 import org.fossify.commons.extensions.beGone
@@ -85,6 +88,7 @@ class SettingsActivity : SimpleActivity() {
         setupLanguage()
         setupHourFormat()
         setupDefaultTab()
+        setupManageTabs()
         setupPreventPhoneFromSleeping()
         setupStartWeekOn()
         setupAlarmMaxReminder()
@@ -150,6 +154,19 @@ class SettingsActivity : SimpleActivity() {
             RadioGroupDialog(this@SettingsActivity, items, config.defaultTab) {
                 config.defaultTab = it as Int
                 binding.settingsDefaultTab.text = getDefaultTabText()
+            }
+        }
+    }
+
+    private fun setupManageTabs() {
+        binding.settingsManageTabsHolder.setOnClickListener {
+            ManageTabsDialog(
+                activity = this,
+                orderedTabIds = config.getFullTabsOrder(),
+                visibleTabIds = config.getVisibleTabsOrdered().toSet()
+            ) { newOrder, newVisible ->
+                config.tabsOrder = newOrder.joinToString(",")
+                config.visibleTabs = newVisible.fold(0) { acc, tabId -> acc or tabId }
             }
         }
     }

@@ -11,7 +11,7 @@ import org.fossify.clock.fragments.TimerFragment
 import org.fossify.clock.helpers.*
 import org.fossify.commons.models.AlarmSound
 
-class ViewPagerAdapter(fm: FragmentManager) : FragmentStatePagerAdapter(fm) {
+class ViewPagerAdapter(fm: FragmentManager, private val tabs: List<Int>) : FragmentStatePagerAdapter(fm) {
     private val fragments = HashMap<Int, Fragment>()
 
     override fun getItem(position: Int): Fragment {
@@ -31,41 +31,41 @@ class ViewPagerAdapter(fm: FragmentManager) : FragmentStatePagerAdapter(fm) {
         super.destroyItem(container, position, item)
     }
 
-    override fun getCount() = TABS_COUNT
+    override fun getCount() = tabs.size
 
-    private fun getFragment(position: Int) = when (position) {
-        TAB_CLOCK_INDEX -> ClockFragment()
-        TAB_ALARM_INDEX -> AlarmFragment()
-        TAB_STOPWATCH_INDEX -> StopwatchFragment()
-        TAB_TIMER_INDEX -> TimerFragment()
-        else -> throw RuntimeException("Trying to fetch unknown fragment id $position")
+    private fun getFragment(position: Int) = when (tabs[position]) {
+        TAB_CLOCK -> ClockFragment()
+        TAB_ALARM -> AlarmFragment()
+        TAB_STOPWATCH -> StopwatchFragment()
+        TAB_TIMER -> TimerFragment()
+        else -> throw RuntimeException("Trying to fetch unknown fragment id ${tabs[position]}")
     }
 
     fun showAlarmSortDialog() {
-        (fragments[TAB_ALARM_INDEX] as? AlarmFragment)?.showSortingDialog()
+        fragments.values.filterIsInstance<AlarmFragment>().firstOrNull()?.showSortingDialog()
     }
 
     fun showTimerSortDialog() {
-        (fragments[TAB_TIMER_INDEX] as? TimerFragment)?.showSortingDialog()
+        fragments.values.filterIsInstance<TimerFragment>().firstOrNull()?.showSortingDialog()
     }
 
     fun updateClockTabAlarm() {
-        (fragments[TAB_CLOCK_INDEX] as? ClockFragment)?.updateAlarm()
+        fragments.values.filterIsInstance<ClockFragment>().firstOrNull()?.updateAlarm()
     }
 
     fun updateAlarmTabAlarmSound(alarmSound: AlarmSound) {
-        (fragments[TAB_ALARM_INDEX] as? AlarmFragment)?.updateAlarmSound(alarmSound)
+        fragments.values.filterIsInstance<AlarmFragment>().firstOrNull()?.updateAlarmSound(alarmSound)
     }
 
     fun updateTimerTabAlarmSound(alarmSound: AlarmSound) {
-        (fragments[TAB_TIMER_INDEX] as? TimerFragment)?.updateAlarmSound(alarmSound)
+        fragments.values.filterIsInstance<TimerFragment>().firstOrNull()?.updateAlarmSound(alarmSound)
     }
 
     fun updateTimerPosition(timerId: Int) {
-        (fragments[TAB_TIMER_INDEX] as? TimerFragment)?.updatePosition(timerId)
+        fragments.values.filterIsInstance<TimerFragment>().firstOrNull()?.updatePosition(timerId)
     }
 
     fun startStopWatch() {
-        (fragments[TAB_STOPWATCH_INDEX] as? StopwatchFragment)?.startStopWatch()
+        fragments.values.filterIsInstance<StopwatchFragment>().firstOrNull()?.startStopWatch()
     }
 }

@@ -1,5 +1,6 @@
 package org.fossify.clock.helpers
 
+import org.fossify.clock.R
 import org.fossify.clock.extensions.isBitSet
 import org.fossify.clock.models.Alarm
 import org.fossify.clock.models.MyTimeZone
@@ -41,8 +42,9 @@ const val WAS_INITIAL_WIDGET_SET_UP = "was_initial_widget_set_up"
 const val DATA_EXPORT_EXTENSION = ".json"
 const val LAST_DATA_EXPORT_PATH = "last_alarms_export_path"
 const val MIGRATE_FIRST_DAY_OF_WEEK = "migrate_first_day_of_week"
+const val VISIBLE_TABS = "visible_tabs"
+const val TABS_ORDER = "tabs_order"
 
-const val TABS_COUNT = 4
 const val EDITED_TIME_ZONE_SEPARATOR = ":"
 const val ALARM_ID = "alarm_id"
 const val NOTIFICATION_ID = "notification_id"
@@ -70,10 +72,53 @@ const val TAB_CLOCK = 1
 const val TAB_ALARM = 2
 const val TAB_STOPWATCH = 4
 const val TAB_TIMER = 8
-const val TAB_CLOCK_INDEX = 0
-const val TAB_ALARM_INDEX = 1
-const val TAB_STOPWATCH_INDEX = 2
-const val TAB_TIMER_INDEX = 3
+
+val DEFAULT_TABS_ORDER = listOf(TAB_CLOCK, TAB_ALARM, TAB_STOPWATCH, TAB_TIMER)
+const val ALL_TABS = TAB_CLOCK or TAB_ALARM or TAB_STOPWATCH or TAB_TIMER
+
+// all 4 tabs in the order the user picked in "Manage tabs", regardless of visibility
+fun Config.getFullTabsOrder(): List<Int> {
+    val storedOrder = tabsOrder.split(",").mapNotNull { it.toIntOrNull() }.filter { it in DEFAULT_TABS_ORDER }
+    return storedOrder + DEFAULT_TABS_ORDER.filter { it !in storedOrder }
+}
+
+// the order and visibility the user picked in "Manage tabs", always non-empty
+fun Config.getVisibleTabsOrdered(): List<Int> {
+    val visible = getFullTabsOrder().filter { visibleTabs and it != 0 }
+    return visible.ifEmpty { listOf(TAB_CLOCK) }
+}
+
+fun getTabIconRes(tabId: Int) = when (tabId) {
+    TAB_CLOCK -> R.drawable.ic_clock_vector
+    TAB_ALARM -> R.drawable.ic_alarm_vector
+    TAB_STOPWATCH -> R.drawable.ic_stopwatch_vector
+    TAB_TIMER -> R.drawable.ic_hourglass_vector
+    else -> throw IllegalArgumentException("Unknown tab id $tabId")
+}
+
+fun getSelectedTabIconRes(tabId: Int) = when (tabId) {
+    TAB_CLOCK -> R.drawable.ic_clock_filled_vector
+    TAB_ALARM -> R.drawable.ic_alarm_filled_vector
+    TAB_STOPWATCH -> R.drawable.ic_stopwatch_filled_vector
+    TAB_TIMER -> R.drawable.ic_hourglass_filled_vector
+    else -> throw IllegalArgumentException("Unknown tab id $tabId")
+}
+
+fun getDeselectedTabIconRes(tabId: Int) = when (tabId) {
+    TAB_CLOCK -> org.fossify.commons.R.drawable.ic_clock_vector
+    TAB_ALARM -> R.drawable.ic_alarm_vector
+    TAB_STOPWATCH -> R.drawable.ic_stopwatch_vector
+    TAB_TIMER -> R.drawable.ic_hourglass_vector
+    else -> throw IllegalArgumentException("Unknown tab id $tabId")
+}
+
+fun getTabLabelRes(tabId: Int) = when (tabId) {
+    TAB_CLOCK -> R.string.clock
+    TAB_ALARM -> org.fossify.commons.R.string.alarm
+    TAB_STOPWATCH -> R.string.stopwatch
+    TAB_TIMER -> R.string.timer
+    else -> throw IllegalArgumentException("Unknown tab id $tabId")
+}
 
 const val TIMER_ID = "timer_id"
 const val INVALID_TIMER_ID = -1

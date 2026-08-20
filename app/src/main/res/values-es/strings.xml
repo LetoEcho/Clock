@@ -5,6 +5,8 @@
     <string name="vibrate">Vibrar</string>
     <string name="no_days_selected">No hay días seleccionados</string>
     <string name="clock">Reloj</string>
+    <string name="manage_tabs">Gestionar pestañas</string>
+    <string name="at_least_one_tab_required">Tiene que quedar al menos una pestaña visible</string>
     <string name="timer">Temporizador</string>
     <string name="stopwatch">Cronómetro</string>
     <string name="start_stopwatch">Iniciar cronómetro</string>

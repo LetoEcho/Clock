@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/manage_tab_holder"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="@dimen/activity_margin"
+    android:paddingVertical="@dimen/normal_margin">
+
+    <CheckBox
+        android:id="@+id/manage_tab_checkbox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <ImageView
+        android:id="@+id/manage_tab_icon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="@dimen/normal_margin"
+        android:contentDescription="@null" />
+
+    <org.fossify.commons.views.MyTextView
+        android:id="@+id/manage_tab_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/normal_margin"
+        android:layout_weight="1"
+        android:textSize="@dimen/bigger_text_size" />
+
+    <ImageView
+        android:id="@+id/manage_tab_drag_handle"
+        android:layout_width="@dimen/drag_handle_size"
+        android:layout_height="@dimen/drag_handle_size"
+        android:contentDescription="@null"
+        android:src="@drawable/ic_drag_handle_vector" />
+
+</LinearLayout>

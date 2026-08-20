@@ -144,6 +144,14 @@ class Config(context: Context) : BaseConfig(context) {
             putString(LAST_DATA_EXPORT_PATH, lastDataExportPath)
         }
 
+    var visibleTabs: Int
+        get() = prefs.getInt(VISIBLE_TABS, ALL_TABS)
+        set(visibleTabs) = prefs.edit { putInt(VISIBLE_TABS, visibleTabs) }
+
+    var tabsOrder: String
+        get() = prefs.getString(TABS_ORDER, DEFAULT_TABS_ORDER.joinToString(","))!!
+        set(tabsOrder) = prefs.edit { putString(TABS_ORDER, tabsOrder) }
+
     @Deprecated("Remove this method in future releases")
     var migrateFirstDayOfWeek: Boolean
         get() = prefs.getBoolean(MIGRATE_FIRST_DAY_OF_WEEK, true)

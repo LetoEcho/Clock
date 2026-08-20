@@ -23,17 +23,17 @@ import org.fossify.clock.helpers.OPEN_TAB
 import org.fossify.clock.helpers.PICK_AUDIO_FILE_INTENT_ID
 import org.fossify.clock.helpers.STOPWATCH_SHORTCUT_ID
 import org.fossify.clock.helpers.STOPWATCH_TOGGLE_ACTION
-import org.fossify.clock.helpers.TABS_COUNT
 import org.fossify.clock.helpers.TAB_ALARM
-import org.fossify.clock.helpers.TAB_ALARM_INDEX
 import org.fossify.clock.helpers.TAB_CLOCK
-import org.fossify.clock.helpers.TAB_CLOCK_INDEX
 import org.fossify.clock.helpers.TAB_STOPWATCH
-import org.fossify.clock.helpers.TAB_STOPWATCH_INDEX
 import org.fossify.clock.helpers.TAB_TIMER
-import org.fossify.clock.helpers.TAB_TIMER_INDEX
 import org.fossify.clock.helpers.TIMER_ID
 import org.fossify.clock.helpers.TOGGLE_STOPWATCH
+import org.fossify.clock.helpers.getDeselectedTabIconRes
+import org.fossify.clock.helpers.getSelectedTabIconRes
+import org.fossify.clock.helpers.getTabIconRes
+import org.fossify.clock.helpers.getTabLabelRes
+import org.fossify.clock.helpers.getVisibleTabsOrdered
 import org.fossify.commons.databinding.BottomTablayoutItemBinding
 import org.fossify.commons.extensions.appLaunched
 import org.fossify.commons.extensions.applyColorFilter
@@ -62,12 +62,15 @@ class MainActivity : SimpleActivity() {
     private var storedTextColor = 0
     private var storedBackgroundColor = 0
     private var storedPrimaryColor = 0
+    private var storedTabsSignature = ""
     private val binding: ActivityMainBinding by viewBinding(ActivityMainBinding::inflate)
+    private val visibleTabs by lazy { config.getVisibleTabsOrdered() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
         appLaunched(BuildConfig.APPLICATION_ID)
+        storedTabsSignature = getTabsSignature()
         setupOptionsMenu()
         refreshMenuItems()
 
@@ -93,8 +96,15 @@ class MainActivity : SimpleActivity() {
         }
     }
 
+    private fun getTabsSignature() = "${config.visibleTabs}_${config.tabsOrder}"
+
     override fun onResume() {
         super.onResume()
+        if (getTabsSignature() != storedTabsSignature) {
+            recreate()
+            return
+        }
+
         setupTopAppBar(binding.mainAppbar, topBarColor = getProperBackgroundColor())
         val configTextColor = getProperTextColor()
         if (storedTextColor != configTextColor) {
@@ -172,9 +182,9 @@ class MainActivity : SimpleActivity() {
     private fun setupOptionsMenu() {
         binding.mainToolbar.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
-                R.id.sort -> when (binding.viewPager.currentItem) {
-                    TAB_ALARM_INDEX -> getViewPagerAdapter()?.showAlarmSortDialog()
-                    TAB_TIMER_INDEX -> getViewPagerAdapter()?.showTimerSortDialog()
+                R.id.sort -> when (visibleTabs.getOrNull(binding.viewPager.currentItem)) {
+                    TAB_ALARM -> getViewPagerAdapter()?.showAlarmSortDialog()
+                    TAB_TIMER -> getViewPagerAdapter()?.showTimerSortDialog()
                 }
 
                 R.id.more_apps_from_us -> launchMoreAppsFromUsIntent()
@@ -230,9 +240,9 @@ class MainActivity : SimpleActivity() {
     private fun storeNewAlarmSound(resultData: Intent) {
         val newAlarmSound = storeNewYourAlarmSound(resultData)
 
-        when (binding.viewPager.currentItem) {
-            TAB_ALARM_INDEX -> getViewPagerAdapter()?.updateAlarmTabAlarmSound(newAlarmSound)
-            TAB_TIMER_INDEX -> getViewPagerAdapter()?.updateTimerTabAlarmSound(newAlarmSound)
+        when (visibleTabs.getOrNull(binding.viewPager.currentItem)) {
+            TAB_ALARM -> getViewPagerAdapter()?.updateAlarmTabAlarmSound(newAlarmSound)
+            TAB_TIMER -> getViewPagerAdapter()?.updateTimerTabAlarmSound(newAlarmSound)
         }
     }
 
@@ -243,7 +253,7 @@ class MainActivity : SimpleActivity() {
     private fun getViewPagerAdapter() = binding.viewPager.adapter as? ViewPagerAdapter
 
     private fun initFragments() {
-        val viewPagerAdapter = ViewPagerAdapter(supportFragmentManager)
+        val viewPagerAdapter = ViewPagerAdapter(supportFragmentManager, visibleTabs)
         binding.viewPager.adapter = viewPagerAdapter
         binding.viewPager.onPageChangeListener {
             binding.mainTabsHolder.getTabAt(it)?.select()
@@ -261,32 +271,20 @@ class MainActivity : SimpleActivity() {
             config.toggleStopwatch = intent.getBooleanExtra(TOGGLE_STOPWATCH, false)
         }
 
-        binding.viewPager.offscreenPageLimit = TABS_COUNT - 1
+        binding.viewPager.offscreenPageLimit = maxOf(1, visibleTabs.size - 1)
         binding.viewPager.currentItem = getTabIndex(tabToOpen)
     }
 
     private fun setupTabs() {
         binding.mainTabsHolder.removeAllTabs()
-        val tabDrawables = arrayOf(
-            R.drawable.ic_clock_vector,
-            R.drawable.ic_alarm_vector,
-            R.drawable.ic_stopwatch_vector,
-            R.drawable.ic_hourglass_vector
-        )
-        val tabLabels = arrayOf(
-            R.string.clock,
-            org.fossify.commons.R.string.alarm,
-            R.string.stopwatch,
-            R.string.timer
-        )
 
-        tabDrawables.forEachIndexed { i, drawableId ->
+        visibleTabs.forEach { tabId ->
             binding.mainTabsHolder.newTab()
                 .setCustomView(org.fossify.commons.R.layout.bottom_tablayout_item)
                 .apply tab@{
                     customView?.let { BottomTablayoutItemBinding.bind(it) }?.apply {
-                        tabItemIcon.setImageDrawable(getDrawable(drawableId))
-                        tabItemLabel.setText(tabLabels[i])
+                        tabItemIcon.setImageDrawable(getDrawable(getTabIconRes(tabId)))
+                        tabItemLabel.setText(getTabLabelRes(tabId))
                         AutofitHelper.create(tabItemLabel)
                         binding.mainTabsHolder.addTab(this@tab)
                     }
@@ -298,7 +296,7 @@ class MainActivity : SimpleActivity() {
                 updateBottomTabItemColors(
                     view = it.customView,
                     isActive = false,
-                    drawableId = getDeselectedTabDrawableIds()[it.position]
+                    drawableId = getDeselectedTabIconRes(visibleTabs[it.position])
                 )
             },
             tabSelectedAction = {
@@ -306,7 +304,7 @@ class MainActivity : SimpleActivity() {
                 updateBottomTabItemColors(
                     view = it.customView,
                     isActive = true,
-                    drawableId = getSelectedTabDrawableIds()[it.position]
+                    drawableId = getSelectedTabIconRes(visibleTabs[it.position])
                 )
             }
         )
@@ -317,12 +315,12 @@ class MainActivity : SimpleActivity() {
         updateBottomTabItemColors(
             view = activeView,
             isActive = true,
-            drawableId = getSelectedTabDrawableIds()[binding.viewPager.currentItem]
+            drawableId = getSelectedTabIconRes(visibleTabs[binding.viewPager.currentItem])
         )
 
         getInactiveTabIndexes(binding.viewPager.currentItem).forEach { index ->
             val inactiveView = binding.mainTabsHolder.getTabAt(index)?.customView
-            updateBottomTabItemColors(inactiveView, false, getDeselectedTabDrawableIds()[index])
+            updateBottomTabItemColors(inactiveView, false, getDeselectedTabIconRes(visibleTabs[index]))
         }
 
         binding.mainTabsHolder.getTabAt(binding.viewPager.currentItem)?.select()
@@ -331,22 +329,8 @@ class MainActivity : SimpleActivity() {
     }
 
     private fun getInactiveTabIndexes(activeIndex: Int): List<Int> {
-        return arrayListOf(0, 1, 2, 3).filter { it != activeIndex }
+        return visibleTabs.indices.filter { it != activeIndex }
     }
-
-    private fun getSelectedTabDrawableIds() = arrayOf(
-        R.drawable.ic_clock_filled_vector,
-        R.drawable.ic_alarm_filled_vector,
-        R.drawable.ic_stopwatch_filled_vector,
-        R.drawable.ic_hourglass_filled_vector
-    )
-
-    private fun getDeselectedTabDrawableIds() = arrayOf(
-        org.fossify.commons.R.drawable.ic_clock_vector,
-        R.drawable.ic_alarm_vector,
-        R.drawable.ic_stopwatch_vector,
-        R.drawable.ic_hourglass_vector
-    )
 
     private fun launchSettings() {
         startActivity(Intent(applicationContext, SettingsActivity::class.java))
@@ -408,12 +392,7 @@ class MainActivity : SimpleActivity() {
     }
 
     private fun getTabIndex(tabId: Int): Int {
-        return when (tabId) {
-            TAB_CLOCK -> TAB_CLOCK_INDEX
-            TAB_ALARM -> TAB_ALARM_INDEX
-            TAB_STOPWATCH -> TAB_STOPWATCH_INDEX
-            TAB_TIMER -> TAB_TIMER_INDEX
-            else -> config.lastUsedViewPagerPage
-        }
+        val index = visibleTabs.indexOf(tabId)
+        return if (index != -1) index else config.lastUsedViewPagerPage.coerceIn(0, visibleTabs.size - 1)
     }
 }
